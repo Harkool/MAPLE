@@ -151,19 +151,8 @@ MAPLE/
 
 Constructed by refining the iAMPCN dataset and integrating annotations from **9 curated AMP databases** (2021-2024):
 
-| Database | AMPs | Functions Covered |
-|----------|------|-------------------|
-| dbAMP 2.0 | 26,447 | Antibacterial, Antifungal, Antiviral, etc. |
-| DRAMP 3.0 | 22,259 | 14 functional categories |
-| APD3 | 3,324 | Broad antimicrobial activities |
-| LAMP2 | 23,253 | Multi-label annotations |
-| Others | - | See Supplementary Table S1 |
 
 **Dataset Composition:**
-- Training/Validation: 25,507 AMPs + 72,606 non-AMPs
-- Functional labels: 14 categories with binary annotations (1/0/−1)
-- Sequence length: 5-200 amino acids
-- Identity threshold: <100% with external validation set
 
 ### 14 Functional Categories
 
@@ -184,13 +173,6 @@ Constructed by refining the iAMPCN dataset and integrating annotations from **9 
 
 ### External Validation Dataset
 
-- **Source**: Independent peptide sequences from UniProt
-- **Composition**: 24,582 AMPs + 36,306 non-AMPs
-- **Quality Control**:
-  - No 100% identity with benchmark
-  - <40% internal redundancy (CD-HIT)
-  - Excluded ambiguous residues (B, J, O, U, X, Z)
-  - No overlap with antimicrobial-related annotations
 
 ## 🏗 Model Architecture
 
@@ -199,7 +181,7 @@ Constructed by refining the iAMPCN dataset and integrating annotations from **9 
 MAPLE employs a **dual-stream architecture** that processes ESM-2 embeddings and knowledge features separately before cross-modal fusion:
 
 <div align="center">
-  <img src=r"figures\architecture.png" alt="MAPLE Architecture" width="800"/>
+  <img src="figures/architecture.png" alt="MAPLE Architecture" width="800"/>
 </div>
 
 ### Core Components
@@ -887,5 +869,6 @@ This work was supported by [Your Funding Sources].
 [![Star History](https://img.shields.io/github/stars/yourusername/MAPLE?style=social)](https://github.com/yourusername/MAPLE/stargazers)
 
 *Accelerating the discovery of safe, multifunctional antimicrobial peptides through AI*
+
 
 </div>
