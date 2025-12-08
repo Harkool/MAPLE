@@ -181,7 +181,7 @@ Constructed by refining the iAMPCN dataset and integrating annotations from **9 
 MAPLE employs a **dual-stream architecture** that processes ESM-2 embeddings and knowledge features separately before cross-modal fusion:
 
 <div align="center">
-  <img src="figures/architecture.png" alt="MAPLE Architecture" width="800"/>
+  <img src="figures/architecture.jpg" alt="MAPLE Architecture" width="800"/>
 </div>
 
 ### Core Components
@@ -872,3 +872,4 @@ This work was supported by [Your Funding Sources].
 
 
 </div>
+
