@@ -290,7 +290,7 @@ Identify AMPs from general peptide sequences:
 
 ```bash
 python train.py \
-    --data_csv data/Benchmark/AMP/AMP.csv \
+    --data_csv data/Benchmark/AMP.csv \
     --label_cols label \
     --batch_size 16 \
     --epochs 50 \
@@ -868,5 +868,6 @@ This work was supported by [Your Funding Sources].
 
 
 </div>
+
 
 
