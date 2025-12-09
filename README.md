@@ -837,21 +837,17 @@ MAPLE builds upon outstanding prior work:
 - APD3: [https://aps.unmc.edu/](https://aps.unmc.edu/)
 - UniProt: [https://www.uniprot.org/](https://www.uniprot.org/)
 
-**Funding:**
-This work was supported by [Your Funding Sources].
-
 ## 📧 Contact
 
 **For Questions & Support:**
 - 📧 Email: 
-  - Hao Liu: [your.email@university.edu]
+  - Hao Liu: [lenhartkoo@foxmail.com]
   - Guo Yu: guoyu@cpu.edu.cn
-- 🐛 Issues: [GitHub Issues](https://github.com/yourusername/MAPLE/issues)
-- 💬 Discussions: [GitHub Discussions](https://github.com/yourusername/MAPLE/discussions)
+- 🐛 Issues: [GitHub Issues](https://github.com/Harkool/MAPLE/issues)
+- 💬 Discussions: [GitHub Discussions](https://github.com/Harkool/MAPLE/discussions)
 
 **Authors:**
 - **Hao Liu** (First Author) - China Pharmaceutical University
-- **Yi Shi** (First Author) - China Pharmaceutical University  
 - **Dechuan Zhan** (Corresponding) - Nanjing University
 - **Guangji Wang** (Corresponding) - China Pharmaceutical University
 - **Guo Yu** (Corresponding) - China Pharmaceutical University
@@ -862,12 +858,13 @@ This work was supported by [Your Funding Sources].
 
 **⭐ If you find MAPLE useful, please star this repository! ⭐**
 
-[![Star History](https://img.shields.io/github/stars/yourusername/MAPLE?style=social)](https://github.com/yourusername/MAPLE/stargazers)
+[![Star History](https://img.shields.io/github/stars/Harkool/MAPLE?style=social)](https://github.com/Harkool/MAPLE/stargazers)
 
 *Accelerating the discovery of safe, multifunctional antimicrobial peptides through AI*
 
 
 </div>
+
 
 
 
