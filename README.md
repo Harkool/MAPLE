@@ -107,16 +107,16 @@ CUDA available: True
 ```
 MAPLE/
 ├── data/
-│   └── Benchmark/
-│       ├── AMP/                  # Binary classification (25,507 AMPs + 72,606 non-AMPs)
-│       ├── MTL/                  # Multi-label dataset with 14 functional categories
-│       └── Independent/             # External validation set (24,582 AMPs + 36,306 non-AMPs)
+│   ├── Benchmark/
+│   │   ├── AMP.csv                  # Binary classification
+│   │   ├── MTL.csv                  # Multi-label dataset with 14 functional categories
+│   └── Independent/                 # External validation set
 │
 ├── Module/
 │   ├── CARE.py                      # Conservative Adaptive Representation Encoder
 │   │   ├── HF-GN: High-Fidelity Group Normalization
 │   │   ├── CME: Conservative Motif Extractor (kernel sizes: 3, 5)
-│   │   └── ACP: Adaptive Channel Processor (SE-style attention)
+│   │   └── ACP: Adaptive Channel Processor
 │   ├── Probimamba.py                # Bidirectional selective state-space model
 │   ├── ESMembedding.py              # ESM-2 embedding extractor (650M/3B/15B)
 │   ├── Knowledge.py                 # 56-dim knowledge feature encoder
@@ -128,8 +128,6 @@ MAPLE/
 │   ├── Fusion.py                    # Cross-modal attention fusion
 │   └── Transformer.py               # Knowledge feature enhancement (4-layer, 8-head)
 │
-├── utils/
-│   └── metrics.py                   # Evaluation metrics (AUROC, AUPRC, MCC, F1, etc.)
 │
 ├── data.py                          # UnifiedProteinDataset with runtime encoding
 ├── model.py                         # Complete MAPLE architecture
@@ -864,6 +862,7 @@ MAPLE builds upon outstanding prior work:
 
 
 </div>
+
 
 
 
