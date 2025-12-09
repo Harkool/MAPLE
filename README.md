@@ -10,14 +10,10 @@
 
 ## 🌟 Highlights
 
-- **Dual-Stream Fusion**: Integrates **ESM-2 embeddings (650M-15B parameters)** with **56-dimensional knowledge-based features** through parallel pathways
+- **Dual-Stream Fusion**: Integrates **ESM-2 embeddings** with **knowledge-based features** through parallel pathways
 - **CARE Module**: Conservative Adaptive Representation Encoder extracts conserved local motifs via multi-scale convolutions with adaptive channel attention
 - **ProBiMamba**: Efficient bidirectional selective state-space model captures long-range dependencies with linear complexity
 - **Cross-Modal Attention**: Aligns and fuses heterogeneous feature representations for comprehensive sequence understanding
-- **State-of-the-Art Performance**: 
-  - Binary AMP classification: **AUROC 0.9989**, **AUPRC 0.9971**, **Accuracy 0.9851**, **MCC 0.9610**
-  - Multi-label prediction: **Macro-accuracy 0.9721** across 14 functional categories
-- **Interpretable Design**: Modular architecture provides transparency in feature learning and decision-making
 
 ## 📋 Table of Contents
 
@@ -872,4 +868,5 @@ This work was supported by [Your Funding Sources].
 
 
 </div>
+
 
