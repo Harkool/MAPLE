@@ -62,11 +62,6 @@ MAPLE currently supports **two task-specific training settings**:
    - hemolytic
    - cytotoxic  
    and other AMP-relevant labels
-
-> **Important**  
-> In the current codebase, these two tasks are trained as **separate runs**, each with its own checkpoint and threshold file.  
-> They are **not** executed as a chained “Stage-1 then Stage-2” inference pipeline.
-
 ---
 
 ## Model Architecture
