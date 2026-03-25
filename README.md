@@ -142,33 +142,6 @@ If `fair-esm` is not installed, the code falls back to **deterministic local emb
 
 ---
 
-## Data Layout
-
-This repository includes the following datasets:
-
-### Benchmark datasets
-
-Used by `train.py` for internal train/validation splitting.
-
-* `Data/Benchmark/AMP.csv`
-* `Data/Benchmark/MTL.csv`
-
-### Independent datasets
-
-Used only for final evaluation.
-
-* `Data/Independent/AMP.csv`
-* `Data/Independent/MTL.csv`
-
-### Demo datasets
-
-Small subsets for quick pipeline validation.
-
-* `Data/Demo/AMP_demo.csv`
-* `Data/Demo/MTL_demo.csv`
-
----
-
 ## Quickstart Demo
 
 Use the demo data to quickly validate the full pipeline:
