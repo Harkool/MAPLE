@@ -1,17 +1,19 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from typing import Dict
 
 from Module.CARE import CARE
-from Module.Fusion import CrossModalAttention
 from Module.ProBiMamba import ProBiMamba
-from Module.Transformer import KnowledgeEnhancedTransformerEncoder
+from Module.Fusion import CrossModalAttention
 
 
 class MLPClassifier(nn.Module):
-    def __init__(self, input_dim: int, hidden_dim: int, num_classes: int, dropout: float = 0.5):
+    """Multi-layer classifier compatible with previous checkpoints."""
+
+    def __init__(self, input_dim, hidden_dim, num_classes, dropout=0.5):
         super().__init__()
-        self.net = nn.Sequential(
+        self.model = nn.Sequential(
             nn.Linear(input_dim, hidden_dim),
             nn.LeakyReLU(),
             nn.Dropout(dropout),
@@ -22,122 +24,224 @@ class MLPClassifier(nn.Module):
         )
 
     def forward(self, x):
-        return self.net(x)
+        return torch.clamp(self.model(x), min=-10.0, max=10.0)
 
 
 class MAPLE(nn.Module):
+    """Dual-input / four-path architecture with CARE + ProBiMamba."""
+
     def __init__(
         self,
         linsize: int = 1024,
         lindropout: float = 0.8,
         num_labels: int = 1,
-        esm_dim: int = 1280,
-        knowledge_dim: int = 512,
-        knowledge_input_dim: int = 56,
-        base_dim: int = 512,
-        bimamba_dim: int = 256,
-        enable_amp_head: bool = True,
-        knowledge_num_heads: int = 8,
-        knowledge_num_layers: int = 4,
-        knowledge_dropout: float = 0.1,
-        max_seq_len: int = 1024,
+        esm_dim: int = 480,
+        knowledge_dim: int = 256,
     ):
         super().__init__()
+
+        self.hidden_size = 480
+        self.probimamba_dim = 240
         self.esm_dim = esm_dim
         self.knowledge_dim = knowledge_dim
-        self.knowledge_input_dim = knowledge_input_dim
-        self.base_dim = base_dim
-        self.bimamba_dim = bimamba_dim
-        self.enable_amp_head = enable_amp_head
 
-        self.knowledge_encoder = KnowledgeEnhancedTransformerEncoder(
-            input_dim=knowledge_input_dim,
-            d_model=knowledge_dim,
-            num_heads=knowledge_num_heads,
-            num_layers=knowledge_num_layers,
-            dropout=knowledge_dropout,
-            max_len=max_seq_len,
+        print(
+            f"[INFO] Build dual-input model with CARE + ProBiMamba: "
+            f"ESM dim={esm_dim}, Knowledge dim={knowledge_dim}"
         )
 
         self.esm_projector = nn.Sequential(
-            nn.Linear(esm_dim, base_dim),
-            nn.LayerNorm(base_dim),
-            nn.GELU(),
+            nn.Linear(esm_dim, self.hidden_size),
+            nn.LayerNorm(self.hidden_size),
+            nn.ReLU(),
             nn.Dropout(0.1),
         )
+
         self.knowledge_projector = nn.Sequential(
-            nn.Linear(knowledge_dim, base_dim),
-            nn.LayerNorm(base_dim),
-            nn.GELU(),
+            nn.Linear(knowledge_dim, self.hidden_size),
+            nn.LayerNorm(self.hidden_size),
+            nn.ReLU(),
             nn.Dropout(0.1),
         )
 
-        self.esm_care = CARE(d_model=base_dim, num_groups=8, preserve_ratio=0.7, dropout=0.1)
-        self.knowledge_care = CARE(d_model=base_dim, num_groups=8, preserve_ratio=0.7, dropout=0.1)
+        # ESM branch: CARE + ProBiMamba
+        self.esm_care = CARE(d_model=self.hidden_size, num_groups=2, preserve_ratio=0.7, dropout=0.1)
+        self.esm_probimamba = ProBiMamba(
+            input_dim=self.hidden_size,
+            hidden_dim=self.probimamba_dim,
+            num_layers=2,
+            state_size=16,
+            num_heads=4,
+            dropout=0.1,
+            use_attention=False,
+        )
+        self.esm_probimamba.enable_gradient_checkpointing()
 
-        self.esm_bimamba = ProBiMamba(input_dim=base_dim, hidden_dim=bimamba_dim, num_layers=3, state_size=16, dropout=0.1)
-        self.knowledge_bimamba = ProBiMamba(input_dim=base_dim, hidden_dim=bimamba_dim, num_layers=3, state_size=16, dropout=0.1)
+        # Knowledge branch: CARE + ProBiMamba
+        self.knowledge_care = CARE(d_model=self.hidden_size, num_groups=2, preserve_ratio=0.7, dropout=0.1)
+        self.knowledge_probimamba = ProBiMamba(
+            input_dim=self.hidden_size,
+            hidden_dim=self.probimamba_dim,
+            num_layers=2,
+            state_size=16,
+            num_heads=4,
+            dropout=0.1,
+            use_attention=False,
+        )
+        self.knowledge_probimamba.enable_gradient_checkpointing()
 
-        self.fusion_care = CrossModalAttention(base_dim, base_dim, num_heads=8)
-        self.fusion_bimamba = CrossModalAttention(bimamba_dim, bimamba_dim, num_heads=8)
-        self.fusion_cross1 = CrossModalAttention(base_dim, bimamba_dim, num_heads=8)
-        self.fusion_cross2 = CrossModalAttention(bimamba_dim, base_dim, num_heads=8)
+        self.norm_esm = nn.LayerNorm(self.hidden_size)
+        self.norm_knowledge = nn.LayerNorm(self.hidden_size)
 
-        final_dim = base_dim * 2 + bimamba_dim * 2
-        self.final_norm = nn.LayerNorm(final_dim)
-        self.task_classifier = MLPClassifier(final_dim, linsize, num_labels, lindropout)
-        self.amp_classifier = MLPClassifier(final_dim, linsize, 1, lindropout) if enable_amp_head else None
+        self.norm_esm_care = nn.LayerNorm(self.hidden_size)
+        self.norm_esm_probimamba = nn.LayerNorm(self.probimamba_dim)
 
-    def _masked_mean(self, x: torch.Tensor, attention_mask=None) -> torch.Tensor:
-        if attention_mask is None:
-            return x.mean(dim=1)
-        weights = attention_mask.float().unsqueeze(-1)
-        return (x * weights).sum(dim=1) / weights.sum(dim=1).clamp_min(1.0)
+        self.norm_knowledge_care = nn.LayerNorm(self.hidden_size)
+        self.norm_knowledge_probimamba = nn.LayerNorm(self.probimamba_dim)
 
-    def encode(self, esm_features, knowledge_features, attention_mask=None):
-        lengths = None
-        if attention_mask is not None:
-            lengths = attention_mask.long().sum(dim=1)
+        # Cross-modal fusion over four paths
+        self.fusion_care = CrossModalAttention(self.hidden_size, self.hidden_size, num_heads=8)
+        self.fusion_probimamba = CrossModalAttention(self.probimamba_dim, self.probimamba_dim, num_heads=8)
+        self.fusion_cross1 = CrossModalAttention(self.hidden_size, self.probimamba_dim, num_heads=8)
+        self.fusion_cross2 = CrossModalAttention(self.probimamba_dim, self.hidden_size, num_heads=8)
 
-        contextual_knowledge = self.knowledge_encoder(knowledge_features, lengths=lengths)
+        final_dim = self.hidden_size + self.probimamba_dim + self.hidden_size + self.probimamba_dim
 
-        e = self.esm_projector(esm_features)
-        k = self.knowledge_projector(contextual_knowledge)
+        self.norm_final = nn.LayerNorm(final_dim)
+        self.classify = MLPClassifier(
+            input_dim=final_dim,
+            hidden_dim=linsize,
+            num_classes=num_labels,
+            dropout=lindropout,
+        )
 
-        e_care = self.esm_care(e)
-        k_care = self.knowledge_care(k)
-        e_mamba = self.esm_bimamba(e)
-        k_mamba = self.knowledge_bimamba(k)
+        print(f"[INFO] Final feature dim: {final_dim}")
+        print(
+            f"[INFO] Path dims: ESM_CARE={self.hidden_size}, ESM_ProBiMamba={self.probimamba_dim}, "
+            f"Knowledge_CARE={self.hidden_size}, Knowledge_ProBiMamba={self.probimamba_dim}"
+        )
 
-        e_care_f, k_care_f = self.fusion_care(e_care, k_care)
-        e_mamba_f, k_mamba_f = self.fusion_bimamba(e_mamba, k_mamba)
-        e_cross1, k_cross2 = self.fusion_cross1(e_care_f, k_mamba_f)
-        e_cross2, k_cross1 = self.fusion_cross2(e_mamba_f, k_care_f)
+    def forward(self, esm_features=None, knowledge_features=None, return_embedding=False, return_attention=False):
+        if self.training:
+            torch.cuda.empty_cache()
 
-        pooled = [
-            self._masked_mean(e_cross1, attention_mask),
-            self._masked_mean(e_cross2, attention_mask),
-            self._masked_mean(k_cross1, attention_mask),
-            self._masked_mean(k_cross2, attention_mask),
-        ]
-        final_feat = torch.cat(pooled, dim=-1)
-        final_feat = self.final_norm(final_feat)
-        return F.dropout(final_feat, p=0.3, training=self.training)
+        if esm_features is None or knowledge_features is None:
+            raise ValueError("Both esm_features and knowledge_features are required.")
 
-    def forward(self, esm_features, knowledge_features, attention_mask=None, return_embedding=False, return_dict=False):
-        final_feat = self.encode(esm_features, knowledge_features, attention_mask)
-        task_logits = self.task_classifier(final_feat)
-        amp_logits = self.amp_classifier(final_feat) if self.amp_classifier is not None else None
+        esm_x = self.esm_projector(esm_features)
+        knowledge_x = self.knowledge_projector(knowledge_features)
 
-        if return_dict:
-            outputs = {
-                "task_logits": task_logits,
-                "amp_logits": amp_logits,
-            }
-            if return_embedding:
-                outputs["embedding"] = final_feat
-            return outputs
+        esm_x = self.norm_esm(esm_x)
+        knowledge_x = self.norm_knowledge(knowledge_x)
 
+        esm_care = self.esm_care(esm_x)
+        esm_care = self.norm_esm_care(esm_care + esm_x)
+
+        esm_probimamba, _ = self.esm_probimamba(esm_x)
+        esm_probimamba = self.norm_esm_probimamba(esm_probimamba)
+
+        knowledge_care = self.knowledge_care(knowledge_x)
+        knowledge_care = self.norm_knowledge_care(knowledge_care + knowledge_x)
+
+        knowledge_probimamba, _ = self.knowledge_probimamba(knowledge_x)
+        knowledge_probimamba = self.norm_knowledge_probimamba(knowledge_probimamba)
+
+        esm_care_enhanced, knowledge_care_enhanced = self.fusion_care(esm_care, knowledge_care)
+        esm_probimamba_enhanced, knowledge_probimamba_enhanced = self.fusion_probimamba(
+            esm_probimamba, knowledge_probimamba
+        )
+
+        esm_care_cross, knowledge_probimamba_cross = self.fusion_cross1(
+            esm_care_enhanced, knowledge_probimamba_enhanced
+        )
+        esm_probimamba_cross, knowledge_care_cross = self.fusion_cross2(
+            esm_probimamba_enhanced, knowledge_care_enhanced
+        )
+
+        esm_care_pooled = esm_care_cross.mean(dim=1)
+        esm_probimamba_pooled = esm_probimamba_cross.mean(dim=1)
+        knowledge_care_pooled = knowledge_care_cross.mean(dim=1)
+        knowledge_probimamba_pooled = knowledge_probimamba_cross.mean(dim=1)
+
+        final_features = torch.cat(
+            [
+                esm_care_pooled,
+                esm_probimamba_pooled,
+                knowledge_care_pooled,
+                knowledge_probimamba_pooled,
+            ],
+            dim=-1,
+        )
+
+        final_features = self.norm_final(final_features)
+        final_features = F.dropout(final_features, p=0.3, training=self.training)
+
+        logits = self.classify(final_features)
+
+        results = [logits]
         if return_embedding:
-            return task_logits, final_feat
-        return task_logits
+            results.append(final_features)
+        if return_attention:
+            results.append(None)
+        return results[0] if len(results) == 1 else tuple(results)
+
+
+def _remap_legacy_keys_to_new(state_dict: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+    """Map old module names (ScConv/ProMamba) to new names (CARE/ProBiMamba)."""
+
+    prefix_map = {
+        "esm_scconv.": "esm_care.",
+        "knowledge_scconv.": "knowledge_care.",
+        "esm_bimamba.": "esm_probimamba.",
+        "knowledge_bimamba.": "knowledge_probimamba.",
+        "norm_esm_scconv.": "norm_esm_care.",
+        "norm_knowledge_scconv.": "norm_knowledge_care.",
+        "norm_esm_bimamba.": "norm_esm_probimamba.",
+        "norm_knowledge_bimamba.": "norm_knowledge_probimamba.",
+        "fusion_scconv.": "fusion_care.",
+        "fusion_bimamba.": "fusion_probimamba.",
+    }
+
+    remapped = {}
+    for k, v in state_dict.items():
+        nk = k
+        for old, new in prefix_map.items():
+            if nk.startswith(old):
+                nk = new + nk[len(old) :]
+                break
+        remapped[nk] = v
+    return remapped
+
+
+def safe_load_checkpoint(model, checkpoint_path, device="cpu"):
+    """Load checkpoint with legacy-to-new key remapping and strict shape filtering."""
+
+    checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
+
+    if isinstance(checkpoint, dict) and "model_state_dict" in checkpoint:
+        state_dict = checkpoint["model_state_dict"]
+    elif isinstance(checkpoint, dict) and "state_dict" in checkpoint:
+        state_dict = checkpoint["state_dict"]
+    elif isinstance(checkpoint, dict):
+        state_dict = checkpoint
+    else:
+        raise TypeError(f"Unsupported checkpoint type: {type(checkpoint)}")
+
+    state_dict = {
+        (k[7:] if k.startswith("module.") else k): v
+        for k, v in state_dict.items()
+    }
+    state_dict = _remap_legacy_keys_to_new(state_dict)
+
+    model_dict = model.state_dict()
+    filtered_dict = {
+        key: value
+        for key, value in state_dict.items()
+        if key in model_dict and value.shape == model_dict[key].shape
+    }
+
+    print(f"[INFO] Matched pretrained params: {len(filtered_dict)}/{len(state_dict)}")
+    print(f"[INFO] Model total params: {len(model_dict)}")
+
+    model.load_state_dict(filtered_dict, strict=False)
+    return model
