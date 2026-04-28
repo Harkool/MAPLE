@@ -178,7 +178,7 @@ Example:
 
 ```bash
 python predict.py \
-  --input_csv Data/Demo/AMP_demo.csv \
+  --input_csv Data/demo.csv \
   --output_csv outputs/demo_predictions.csv \
   --sequence_col sequence \
   --label_dir Model/label \
