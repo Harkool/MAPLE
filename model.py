@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Dict
+from typing import Dict, Optional
 
 from Module.CARE import CARE
 from Module.ProBiMamba import ProBiMamba
@@ -213,11 +213,7 @@ def _remap_legacy_keys_to_new(state_dict: Dict[str, torch.Tensor]) -> Dict[str, 
     return remapped
 
 
-def safe_load_checkpoint(model, checkpoint_path, device="cpu"):
-    """Load checkpoint with legacy-to-new key remapping and strict shape filtering."""
-
-    checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
-
+def _extract_state_dict_from_checkpoint(checkpoint) -> Dict[str, torch.Tensor]:
     if isinstance(checkpoint, dict) and "model_state_dict" in checkpoint:
         state_dict = checkpoint["model_state_dict"]
     elif isinstance(checkpoint, dict) and "state_dict" in checkpoint:
@@ -231,7 +227,48 @@ def safe_load_checkpoint(model, checkpoint_path, device="cpu"):
         (k[7:] if k.startswith("module.") else k): v
         for k, v in state_dict.items()
     }
-    state_dict = _remap_legacy_keys_to_new(state_dict)
+    return _remap_legacy_keys_to_new(state_dict)
+
+
+def infer_maple_init_kwargs_from_checkpoint(checkpoint) -> Dict[str, int]:
+    """Infer MAPLE constructor kwargs from checkpoint metadata and tensor shapes."""
+    ckpt_args = checkpoint.get("args", {}) if isinstance(checkpoint, dict) else {}
+    state_dict = _extract_state_dict_from_checkpoint(checkpoint)
+
+    hidden_size = ckpt_args.get("hidden_size")
+    if hidden_size is None:
+        hidden_size = state_dict["classify.model.0.weight"].shape[0]
+
+    dropout = ckpt_args.get("dropout", 0.8)
+
+    label_cols = ckpt_args.get("label_cols")
+    if label_cols:
+        num_labels = len(label_cols)
+    else:
+        num_labels = int(state_dict["classify.model.6.bias"].shape[0])
+
+    esm_dim = checkpoint.get("esm_dim") if isinstance(checkpoint, dict) else None
+    if esm_dim is None:
+        esm_dim = int(state_dict["esm_projector.0.weight"].shape[1])
+
+    knowledge_dim = checkpoint.get("knowledge_dim") if isinstance(checkpoint, dict) else None
+    if knowledge_dim is None:
+        knowledge_dim = int(state_dict["knowledge_projector.0.weight"].shape[1])
+
+    return {
+        "linsize": int(hidden_size),
+        "lindropout": float(dropout),
+        "num_labels": int(num_labels),
+        "esm_dim": int(esm_dim),
+        "knowledge_dim": int(knowledge_dim),
+    }
+
+
+def safe_load_checkpoint(model, checkpoint_path, device="cpu", require_all_model_keys: bool = False):
+    """Load checkpoint with legacy-to-new key remapping and optional full-match enforcement."""
+
+    checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
+    state_dict = _extract_state_dict_from_checkpoint(checkpoint)
 
     model_dict = model.state_dict()
     filtered_dict = {
@@ -239,9 +276,47 @@ def safe_load_checkpoint(model, checkpoint_path, device="cpu"):
         for key, value in state_dict.items()
         if key in model_dict and value.shape == model_dict[key].shape
     }
+    missing_model_keys = [key for key in model_dict.keys() if key not in filtered_dict]
+    mismatched_or_unexpected = [
+        key for key, value in state_dict.items()
+        if key not in model_dict or value.shape != model_dict[key].shape
+    ]
 
     print(f"[INFO] Matched pretrained params: {len(filtered_dict)}/{len(state_dict)}")
     print(f"[INFO] Model total params: {len(model_dict)}")
+    if mismatched_or_unexpected:
+        preview = ", ".join(mismatched_or_unexpected[:10])
+        print(f"[WARNING] Unmatched checkpoint params: {preview}")
+    if missing_model_keys:
+        preview = ", ".join(missing_model_keys[:10])
+        print(f"[WARNING] Missing model params from checkpoint: {preview}")
+
+    if require_all_model_keys and missing_model_keys:
+        raise RuntimeError(
+            "Checkpoint does not fully match MAPLE model structure. "
+            f"Missing {len(missing_model_keys)} model parameter(s) after remapping/filtering."
+        )
 
     model.load_state_dict(filtered_dict, strict=False)
     return model
+
+
+def build_maple_from_checkpoint(checkpoint_path: str, device: Optional[str] = "cpu"):
+    """Build MAPLE directly from checkpoint metadata and parameter shapes, then fully load weights."""
+    checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
+    init_kwargs = infer_maple_init_kwargs_from_checkpoint(checkpoint)
+    model = MAPLE(**init_kwargs)
+    model = safe_load_checkpoint(
+        model,
+        checkpoint_path,
+        device=device,
+        require_all_model_keys=True,
+    )
+    model = model.to(device)
+    model.eval()
+    return {
+        "model": model,
+        "checkpoint": checkpoint,
+        "init_kwargs": init_kwargs,
+        "num_labels": int(init_kwargs["num_labels"]),
+    }
