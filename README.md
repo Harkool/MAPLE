@@ -12,7 +12,6 @@ This repository includes:
 - command-line batch prediction
 - evaluation scripts
 - training scripts
-- constrained fine-tuning utilities
 - benchmark and independent processed datasets
 
 ## Architecture overview
