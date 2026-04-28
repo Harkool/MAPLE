@@ -104,7 +104,7 @@ embedding extraction is the dominant cost. CPU works for small examples.
 
 The code expects trained model weights to be supplied separately.
 Download the pretrained checkpoints from the GitHub Releases page:
-`MAPLE pretrain`. After downloading, arrange the files as shown below.
+`MAPLE pretrained checkpoints`. After downloading, arrange the files as shown below.
 
 For the Streamlit app, the default model folder is `MAPLE_checkpoints`. If that
 folder is not found, the app also tries `Model` and `checkpoints` under the
