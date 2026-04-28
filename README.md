@@ -45,19 +45,16 @@ MAPLE/
 ├── predict.py                    # Command-line inference from CSV
 ├── eval.py                       # Checkpoint evaluation
 ├── train.py                      # Model training
-├── constrained_finetune.py       # Optional constrained fine-tuning
 ├── Generate_pkl.py               # Unified feature PKL generation
 ├── model.py                      # MAPLE model implementation
 ├── data.py                       # Dataset and collate utilities
 ├── loss.py                       # Loss functions
 ├── Module/                       # CARE, ProBiMamba, Fusion, knowledge transformer modules
-├── Knowledge/                    # Knowledge-transformer training utilities
 ├── Data/
 │   ├── Benchmark/
 │   ├── Independent/
-├── Model/                        # Current local checkpoint layout in this repository
-├── 7-kmer/                       # Motif enrichment references
-├── motif_reference.csv           # Motif interpretation reference used by Streamlit
+│   └── motif_reference.csv       # Motif interpretation reference used by Streamlit
+├── MAPLE_checkpoints/            # Current local checkpoint layout in this repository
 └── Figure/architecture.jpg       # Architecture figure
 ```
 
