@@ -303,47 +303,15 @@ provided.
 
 ## Data sources and data availability
 
-MAPLE was developed using benchmark and independent validation datasets curated
-from publicly available antimicrobial peptide resources and UniProt. The
-benchmark dataset was constructed by refining the original iAMPCN resource and
-harmonizing functional annotations from AMP-related databases, including dbAMP,
-DRAMP, CAMPR4, APD3, AntiFP, DBAASP, AMPdb, DCTPep, and DRAVP. Non-AMP
-sequences used for negative sampling were obtained from UniProt after filtering
-entries associated with antimicrobial, toxic, membrane-related, or
-antibiotic-related annotations.
+MAPLE was developed using benchmark and independent validation datasets curated from publicly available antimicrobial peptide resources and UniProt. The benchmark dataset was constructed by refining the original iAMPCN resource and harmonizing functional annotations from AMP-related databases, including dbAMP, DRAMP, CAMPR4, APD3, AntiFP, DBAASP, AMPdb, DCTPep, and DRAVP. Non-AMP sequences used for negative sampling were obtained from UniProt after filtering entries associated with antimicrobial, toxic, membrane-related, or antibiotic-related annotations.
 
-Instead, we provide the model implementation, configuration files, task definitions, example command lines, and documentation describing how the datasets and labels were organized for model training and evaluation.
+Because these datasets were derived from multiple third-party public databases with different usage policies, this repository does not redistribute all original database records as a single bundled dataset. Instead, we provide the model implementation, preprocessing scripts, feature-construction scripts, task definitions, task-specific thresholds, example input files, demo outputs, and documentation describing how the datasets and labels were organized for model training and evaluation.
 
-The file `examples/example_input.csv` contains a small number of real peptide
-sequences selected from public AMP databases and is provided only as a minimal
-demonstration input for running MAPLE inference and the Streamlit interface. It
-is not intended for model training, benchmarking, or biological interpretation.
+The file `examples/example_input.csv` contains a small number of real peptide sequences selected from public AMP databases and is provided only as a minimal demonstration input for running MAPLE inference and the Streamlit interface. It is not intended for model training, benchmarking, or biological interpretation.
 
-Functional labels in MAPLE should be interpreted according to the
-dataset-specific harmonization rules. A positive label indicates experimentally
-supported activity where available. A negative label generally indicates absence
-of harmonized positive evidence or filtered non-AMP status under the dataset
-construction rules, and should not be interpreted as experimentally confirmed
-inactivity unless explicitly stated.
+Functional labels in MAPLE should be interpreted according to the dataset-specific harmonization rules. A positive label indicates experimentally supported activity where available. A negative label generally indicates absence of harmonized positive evidence or filtered non-AMP status under the dataset construction rules, and should not be interpreted as experimentally confirmed inactivity unless explicitly stated.
 
-Included CSV files are organized as:
-
-- `Data/Benchmark/AMP/`: AMP and non-AMP benchmark CSV files.
-- `Data/Benchmark/MTL/`: benchmark CSV files for the 14 functional labels.
-- `Data/Independence/AMP/`: AMP and non-AMP independence CSV files.
-- `Data/Independence/MTL/`: independence CSV files for the 14 functional labels.
-- `examples/example_input.csv`: minimal sequence-only input for quick inference
-  and Streamlit tests.
-- `Data/motif_reference.csv`: bundled motif reference table. The current
-  Streamlit loader looks for `motif_reference.csv` at the repository root, so
-  copy or symlink this file there if motif-level interpretation is needed.
-
-Training and evaluation CSV files under `Data/Benchmark/` and
-`Data/Independence/` use `sequence,label` columns. The demonstration file
-`examples/example_input.csv` uses `sequence_id,sequence,source_database,note`
-and intentionally contains no task labels. PKL feature files are intentionally
-generated locally because they depend on the selected ESM model, max sequence
-length, knowledge encoder, and device/runtime environment.
+PKL feature files are intentionally generated locally because they depend on the selected ESM model, max sequence length, knowledge encoder, and device/runtime environment.
 
 ## Model architecture
 
