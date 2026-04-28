@@ -17,6 +17,7 @@ selectivity-oriented prioritization.
 - Evaluation script that exports task metrics to CSV.
 - Processed benchmark and independence CSV datasets for AMP screening and 14
   AMP-related functional tasks.
+- Minimal public AMP example CSV for inference and Streamlit testing.
 - Optional motif-reference table for the Streamlit interpretation layer.
 
 Pretrained `.pt` checkpoints and generated `.pkl` feature files are not included
@@ -43,15 +44,10 @@ MAPLE/
 │   ├── Fusion.py                  # Cross-modal fusion modules
 │   └── knowledge_transformer.py   # Optional 56-to-256 knowledge encoder
 ├── web_core/                      # Streamlit parsing, runtime, UI, and charts
+├── examples/
+│   └── example_input.csv           # Minimal inference input example
 ├── Data/
-│   ├── demo.csv
-│   ├── motif_reference.csv
-│   ├── Benchmark/
-│   │   ├── AMP/
-│   │   └── MTL/
-│   └── Independence/
-│       ├── AMP/
-│       └── MTL/
+│   └──  motif_reference.csv
 ├── Figure/architecture.jpg
 ├── LICENSE
 └── README.md
@@ -157,6 +153,8 @@ The app supports manual input, CSV upload, and FASTA upload. It reports:
   `Data/motif_reference.csv`.
 - Downloadable CSV results and FASTA output for valid sequences.
 
+The Streamlit interface can be tested using `examples/example_input.csv`.
+
 Functional prediction is only run for sequences that pass the AMP screening
 threshold. Sequences that do not pass AMP screening keep AMP-level results and
 descriptor fields, but functional activity columns are left unavailable.
@@ -168,9 +166,9 @@ CSV input should contain a sequence column. Common column names such as
 by the Streamlit app.
 
 ```csv
-sequence_id,sequence
-pep_001,KWKLFKKIGAVLKVL
-pep_002,GIGKFLHSAKKFGKAFVGEIMNS
+sequence_id,sequence,source_database,note
+example_001,LLGDFFRKSKEKIGKEFKRIVQRIKDFLRNLVPRTES,APD3,public AMP example for inference demonstration
+example_002,GIGKFLHSAKKFGKAFVGEIMNS,DBAASP,public AMP example for inference demonstration
 ```
 
 FASTA input is also supported:
@@ -197,8 +195,8 @@ Run per-label 14-task prediction from a flat label-checkpoint directory:
 
 ```bash
 python predict.py \
-  --input_csv Data/demo.csv \
-  --output_csv outputs/demo_predictions.csv \
+  --input_csv examples/example_input.csv \
+  --output_csv outputs/example_predictions.csv \
   --sequence_col sequence \
   --label_dir MAPLE_checkpoints/label \
   --knowledge_transformer_ckpt MAPLE_checkpoints/knowledge_transformer.pt \
@@ -209,8 +207,8 @@ Run prediction with a single checkpoint produced by `train.py`:
 
 ```bash
 python predict.py \
-  --input_csv Data/demo.csv \
-  --output_csv outputs/single_checkpoint_predictions.csv \
+  --input_csv examples/example_input.csv \
+  --output_csv outputs/example_single_checkpoint_predictions.csv \
   --sequence_col sequence \
   --checkpoint outputs/antifungal/antifungal.pt \
   --label_cols label \
@@ -303,7 +301,35 @@ and macro/per-label metrics for multi-label checkpoints. `--threshold auto` can
 search a threshold for single-label checkpoints when a threshold-search PKL is
 provided.
 
-## Data
+## Data sources and data availability
+
+MAPLE was developed using benchmark and independent validation datasets curated
+from publicly available antimicrobial peptide resources and UniProt. The
+benchmark dataset was constructed by refining the original iAMPCN resource and
+harmonizing functional annotations from AMP-related databases, including dbAMP,
+DRAMP, CAMPR4, APD3, AntiFP, DBAASP, AMPdb, DCTPep, and DRAVP. Non-AMP
+sequences used for negative sampling were obtained from UniProt after filtering
+entries associated with antimicrobial, toxic, membrane-related, or
+antibiotic-related annotations.
+
+Because these datasets were derived from multiple third-party public databases
+with different usage policies, this repository does not redistribute all
+original database records as a single bundled dataset. Instead, we provide
+preprocessing scripts, feature-construction scripts, label definitions,
+task-specific thresholds, example input files, demo outputs, and instructions
+for preparing data from the public sources described in the manuscript.
+
+The file `examples/example_input.csv` contains a small number of real peptide
+sequences selected from public AMP databases and is provided only as a minimal
+demonstration input for running MAPLE inference and the Streamlit interface. It
+is not intended for model training, benchmarking, or biological interpretation.
+
+Functional labels in MAPLE should be interpreted according to the
+dataset-specific harmonization rules. A positive label indicates experimentally
+supported activity where available. A negative label generally indicates absence
+of harmonized positive evidence or filtered non-AMP status under the dataset
+construction rules, and should not be interpreted as experimentally confirmed
+inactivity unless explicitly stated.
 
 Included CSV files are organized as:
 
@@ -311,12 +337,16 @@ Included CSV files are organized as:
 - `Data/Benchmark/MTL/`: benchmark CSV files for the 14 functional labels.
 - `Data/Independence/AMP/`: AMP and non-AMP independence CSV files.
 - `Data/Independence/MTL/`: independence CSV files for the 14 functional labels.
-- `Data/demo.csv`: small input example for quick prediction tests.
+- `examples/example_input.csv`: minimal sequence-only input for quick inference
+  and Streamlit tests.
 - `Data/motif_reference.csv`: bundled motif reference table. The current
   Streamlit loader looks for `motif_reference.csv` at the repository root, so
   copy or symlink this file there if motif-level interpretation is needed.
 
-The CSV files use `sequence,label` columns. PKL feature files are intentionally
+Training and evaluation CSV files under `Data/Benchmark/` and
+`Data/Independence/` use `sequence,label` columns. The demonstration file
+`examples/example_input.csv` uses `sequence_id,sequence,source_database,note`
+and intentionally contains no task labels. PKL feature files are intentionally
 generated locally because they depend on the selected ESM model, max sequence
 length, knowledge encoder, and device/runtime environment.
 
