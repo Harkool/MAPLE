@@ -21,10 +21,12 @@ selectivity-oriented prioritization.
   manuscript.
 - Optional motif-reference table for the Streamlit interpretation layer.
 
-Pretrained `.pt` checkpoints and generated `.pkl` feature files are not included
-in this repository snapshot. Generate PKL files locally before training or
-evaluation, and place model checkpoints in one of the layouts described below
-before running model-based inference.
+Pretrained `.pt` checkpoints are provided separately through the GitHub Releases
+page under the release named `MAPLE pretrain`. Generated `.pkl` feature files are
+not included in this repository snapshot and should be generated locally before
+training or evaluation. After downloading the checkpoint release assets, place
+the model checkpoints in one of the layouts described below before running
+model-based inference.
 
 This repository does not redistribute the full benchmark or independent
 validation datasets as bundled CSV files. See [Data sources and data availability](#data-sources-and-data-availability)
@@ -101,6 +103,8 @@ embedding extraction is the dominant cost. CPU works for small examples.
 ## Checkpoints
 
 The code expects trained model weights to be supplied separately.
+Download the pretrained checkpoints from the GitHub Releases page:
+`MAPLE pretrain`. After downloading, arrange the files as shown below.
 
 For the Streamlit app, the default model folder is `MAPLE_checkpoints`. If that
 folder is not found, the app also tries `Model` and `checkpoints` under the
