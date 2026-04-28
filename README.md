@@ -312,12 +312,7 @@ sequences used for negative sampling were obtained from UniProt after filtering
 entries associated with antimicrobial, toxic, membrane-related, or
 antibiotic-related annotations.
 
-Because these datasets were derived from multiple third-party public databases
-with different usage policies, this repository does not redistribute all
-original database records as a single bundled dataset. Instead, we provide
-preprocessing scripts, feature-construction scripts, label definitions,
-task-specific thresholds, example input files, demo outputs, and instructions
-for preparing data from the public sources described in the manuscript.
+Instead, we provide the model implementation, configuration files, task definitions, example command lines, and documentation describing how the datasets and labels were organized for model training and evaluation.
 
 The file `examples/example_input.csv` contains a small number of real peptide
 sequences selected from public AMP databases and is provided only as a minimal
