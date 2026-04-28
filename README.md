@@ -96,7 +96,7 @@ The current repository snapshot includes a local checkpoint layout under [Model]
 Current local layout:
 
 ```text
-Model/
+MAPLE_checkpoints/
 ├── AMP.pt
 ├── knowledge_transformer.pt
 ├── thresholds.json
