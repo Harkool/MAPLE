@@ -319,30 +319,6 @@ python eval.py \
   --device auto \
   --output_dir eval_outputs/antifungal_model
 ```
-
-## Optional constrained fine-tuning
-
-```bash
-python constrained_finetune.py \
-  --init_checkpoint out_stl/antifungal/antifungal.pt \
-  --tune_data_pkl Data/Independent/MTL/antifungal.pkl \
-  --benchmark_pkl Data/Benchmark/MTL/antifungal.pkl \
-  --label_cols label \
-  --save_dir out_stl/antifungal_constrained_ft \
-  --output_name antifungal_constrained.pt \
-  --max_samples 5120 \
-  --batch_size 32 \
-  --lr 1e-5 \
-  --epochs 30 \
-  --gpu 0 \
-  --threshold 0.5 \
-  --benchmark_min_f1 0.0 \
-  --benchmark_stop_floor 0.70 \
-  --min_delta 0.0 \
-  --save_any_valid \
-  --save_last_if_none
-```
-
 ## Data availability
 
 Processed benchmark and independent files are included under [Data](./Data).
