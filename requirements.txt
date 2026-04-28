@@ -1,9 +1,0 @@
-numpy>=1.23
-pandas>=1.5
-scikit-learn>=1.1
-tqdm>=4.65
-torch>=2.0
-
-# Optional: install for pretrained ESM-2 embeddings.
-# If omitted, code falls back to deterministic local embeddings.
-# fair-esm>=2.0.0
