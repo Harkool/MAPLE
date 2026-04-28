@@ -346,9 +346,9 @@ python constrained_finetune.py \
 
 ## Data availability
 
-Processed benchmark, independent, and demo files are included under [Data](./Data).
+Processed benchmark and independent files are included under [Data](./Data).
 
-This repository contains processed CSV and PKL files used for training, evaluation, and demo inference. Source-database provenance and downstream manuscript details should be described in the accompanying paper or supplementary material.
+This repository contains processed CSV and PKL files used for training, evaluation, and inference. Source-database provenance and downstream manuscript details should be described in the accompanying paper or supplementary material.
 
 ## Reproducibility notes
 
