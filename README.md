@@ -355,9 +355,6 @@ Liu H, Shi Y, Guo F, Wang J, Li J, Wang G, Zhan D-C, Hao H, Yu G.
 MAPLE: Interpretable deep learning identifies selective antimicrobial peptides
 using joint evolutionary-physicochemical analysis.
 ```
-
-Update this section with the final DOI, venue, or preprint URL when available.
-
 ## License
 
 This repository is released under the MIT License. See [LICENSE](LICENSE).
