@@ -1,430 +1,382 @@
-# MAPLE: Interpretable Deep Learning for Potent and Selective Antimicrobial Peptides
+# MAPLE: Interpretable Deep Learning for Selective Antimicrobial Peptide Prediction
 
-![License](https://img.shields.io/badge/License-MIT-green.svg)
-![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)
-![PyTorch](https://img.shields.io/badge/PyTorch-2.x-orange.svg)
-
-**MAPLE (Multifunctional AMP Learning Engine)** is an interpretable deep learning framework for antimicrobial peptide modeling. It integrates **protein language model representations** with **knowledge-enhanced physicochemical encodings** to support both:
-
-- **Binary AMP identification** (`AMP` task)
-- **Multi-label functional prediction** over **14 AMP-related activity / phenotype labels** (`MTL` task)
-
-This repository provides the reference implementation used in our manuscript, together with a reproducible pipeline for **feature caching, model training, threshold selection, and independent evaluation**.
-
----
-
-## Table of Contents
-
-- [Overview](#overview)
-- [Model Architecture](#model-architecture)
-- [Current Training Strategy](#current-training-strategy)
-- [Key Features](#key-features)
-- [Requirements](#requirements)
-- [Data Layout](#data-layout)
-- [Quickstart Demo](#quickstart-demo)
-  - [AMP demo](#amp-demo)
-  - [MTL demo](#mtl-demo)
-- [Full Workflow](#full-workflow)
-  - [1. Rebuild feature cache](#1-rebuild-feature-cache)
-  - [2. Train models](#2-train-models)
-  - [3. Evaluate on independent data](#3-evaluate-on-independent-data)
-- [Outputs](#outputs)
-- [Repository Structure](#repository-structure)
-- [Interpretability Notes](#interpretability-notes)
-- [Citation](#citation)
-- [License](#license)
-- [Acknowledgements](#acknowledgements)
-
----
+MAPLE predicts AMP identity and 14 AMP-related functional activities from peptide sequences using joint evolutionary and physicochemical representations.
 
 ## Overview
 
-MAPLE adopts a **dual-stream representation framework** for peptide sequences:
+MAPLE is an interpretable dual-stream framework for antimicrobial peptide prediction and functional profiling. It combines ESM-2 embeddings with knowledge-based physicochemical features and supports AMP identification, 14-category functional prediction, selectivity-oriented prioritization, and basic sequence property profiling.
 
-- an **evolutionary stream** derived from pretrained or fallback sequence embeddings
-- a **knowledge stream** derived from handcrafted physicochemical and sequence-level descriptors
+This repository includes:
 
-These two streams are refined and fused to produce task-specific predictions.
+- local Streamlit inference
+- command-line batch prediction
+- evaluation scripts
+- training scripts
+- constrained fine-tuning utilities
+- benchmark and independent processed datasets
 
-### Tasks currently supported
+## Architecture overview
 
-MAPLE currently supports **two task-specific training settings**:
+![MAPLE architecture](Figure/architecture.jpg)
 
-1. **AMP task**  
-   Binary classification for **AMP vs non-AMP**
+## Main features
 
-2. **MTL task**  
-   Multi-label prediction over **14 functional / phenotype categories**, including efficacy-related and toxicity-related endpoints such as:
-   - antibacterial
-   - antifungal
-   - anticancer
-   - antiviral
-   - hemolytic
-   - cytotoxic  
-   and other AMP-relevant labels
----
+- AMP identification from peptide sequences
+- Functional prediction across 14 AMP-related categories
+- Selectivity-oriented prioritization using antibacterial and hemolysis predictions
+- Basic physicochemical descriptor calculation
+- Optional motif-level interpretation
+- Command-line inference
+- Streamlit-based local prediction interface
 
-## Model Architecture
+The 14 functional categories are:
 
-![MAPLE Model Architecture](Figure/architecture.jpg)
+`anti_mammalian_cells`, `antibacterial`, `antibiofilm`, `anticancer`, `antifungal`, `antigram_negative`, `antigram_positive`, `antihiv`, `antimrsa`, `antioxidant`, `antiparasitic`, `antiviral`, `cytotoxic`, `hemolytic`
 
-MAPLE uses a **dual-stream architecture**:
+Note: internal code variables use `antigram_negative` and `antigram_positive`, while some checkpoint and dataset file names use `antigram-negative` and `antigram-positive`.
 
-- **Evolutionary stream**  
-  Processes sequence embeddings from the ESM-2 backend (or deterministic local fallback embeddings if `fair-esm` is unavailable)
+## Repository structure
 
-- **Knowledge stream**  
-  Processes knowledge-enhanced physicochemical sequence encodings
+```text
+MAPLE/
+├── app.py                        # Streamlit app entry logic
+├── run.py                        # Thin Streamlit launcher
+├── web_core/                     # Streamlit helper modules
+├── predict.py                    # Command-line inference from CSV
+├── eval.py                       # Checkpoint evaluation
+├── train.py                      # Model training
+├── constrained_finetune.py       # Optional constrained fine-tuning
+├── Generate_pkl.py               # Unified feature PKL generation
+├── model.py                      # MAPLE model implementation
+├── data.py                       # Dataset and collate utilities
+├── loss.py                       # Loss functions
+├── Module/                       # CARE, ProBiMamba, Fusion, knowledge transformer modules
+├── Knowledge/                    # Knowledge-transformer training utilities
+├── Data/
+│   ├── Benchmark/
+│   ├── Independent/
+├── Model/                        # Current local checkpoint layout in this repository
+├── 7-kmer/                       # Motif enrichment references
+├── motif_reference.csv           # Motif interpretation reference used by Streamlit
+└── Figure/architecture.jpg       # Architecture figure
+```
 
-Both streams are refined by:
+## Installation
 
-- **CARE** for local conserved / motif-aware feature extraction
-- **ProBiMamba** for long-range dependency modeling
+### Option 1: Conda
 
-The refined representations are then fused via **CrossModalAttention** into a unified peptide representation, followed by a task-specific prediction head.
+```bash
+conda create -n maple python=3.10 -y
+conda activate maple
+pip install torch pandas numpy scikit-learn streamlit plotly tqdm fair-esm
+```
 
----
+### Option 2: Existing environment
 
-## Current Training Strategy
-
-The current pipeline is organized as:
-
-**feature cache → training/validation split → model selection on validation set → threshold export → independent evaluation**
-
-### Key points
-
-- `train.py` performs an internal **train/validation split** from the **Benchmark** dataset
-- `Eval.py` is used for **post-training evaluation / inference**
-- Feature generation can be precomputed via `build_feature_cache.py`
-- Training produces:
-  - a **task-specific best checkpoint**
-  - a **task-specific threshold JSON file**
-- Evaluation must use the **thresholds selected during training**
-- Thresholds are **not re-tuned on the independent dataset**
-
-This design avoids evaluation-time threshold leakage and keeps the independent set strictly for final reporting.
-
----
-
-## Key Features
-
-- Dual-stream fusion of:
-  - **ESM-2 / embedding-based sequence representations**
-  - **knowledge-enhanced physicochemical descriptors**
-- Separate support for:
-  - **binary AMP classification**
-  - **14-label multi-label functional prediction**
-- Interpretable architecture with motif-aware modules
-- Feature caching for faster repeated training/evaluation
-- Threshold export from training for reproducible evaluation
-- Optional `fair-esm` backend with deterministic local fallback
-- Memory-efficient training with support for gradient checkpointing
-
----
+```bash
+pip install torch pandas numpy scikit-learn streamlit plotly tqdm fair-esm
+```
 
 ## Requirements
 
-Recommended runtime: **Python 3.10+**
+- Python 3.10 recommended
+- PyTorch
+- CUDA-compatible GPU recommended, CPU supported for small examples
+- fair-esm
+- pandas
+- numpy
+- scikit-learn
+- streamlit
+- plotly
+- tqdm
 
-Install dependencies:
+Large-batch inference with ESM-2 embeddings is faster on GPU. The Streamlit interface is intended for small to moderate batches.
 
-```bash
-pip install -r requirements.txt
-````
+## Pretrained checkpoints
 
-Optional pretrained ESM-2 backend:
+The current repository snapshot includes a local checkpoint layout under [Model](./Model). The Streamlit interface also supports a release-style folder such as `MAPLE_checkpoints/`.
 
-```bash
-pip install fair-esm
+Current local layout:
+
+```text
+Model/
+├── AMP.pt
+├── knowledge_transformer.pt
+├── thresholds.json
+└── label/
+    ├── anti_mammalian_cells/anti_mammalian_cells.pt
+    ├── antibacterial/antibacterial.pt
+    ├── antibiofilm/antibiofilm.pt
+    ├── anticancer/anticancer.pt
+    ├── antifungal/antifungal.pt
+    ├── antigram-negative/antigram-negative.pt
+    ├── antigram-positive/antigram-positive.pt
+    ├── antihiv/antihiv.pt
+    ├── antimrsa/antimrsa.pt
+    ├── antioxidant/antioxidant.pt
+    ├── antiparasitic/antiparasitic.pt
+    ├── antiviral/antiviral.pt
+    ├── cytotoxic/cytotoxic.pt
+    └── hemolytic/hemolytic.pt
 ```
 
-If `fair-esm` is not installed, the code falls back to **deterministic local embeddings**.
+The Streamlit app accepts a user-specified checkpoint folder and searches compatible label checkpoint layouts:
 
----
+- `label/<label>.pt`
+- `label/<label>/<label>.pt`
+- `<label>.pt`
 
-## Quickstart Demo
+If checkpoints are missing or cannot be loaded, `run.py` still performs sequence validation, descriptor calculation, and table generation, but no model probabilities are generated. The application does not generate random or dummy predictions.
 
-Use the demo data to quickly validate the full pipeline:
-
-**build cache → train → evaluate**
-
-> Demo runs are for **pipeline sanity check only** and should **not** be used for reporting model performance.
-
----
-
-### AMP demo
-
-#### 1) Build feature cache
+## Quick start: Streamlit local interface
 
 ```bash
-python build_feature_cache.py \
-  --data_csv Data/Demo/AMP_demo.csv \
+streamlit run run.py
+```
+
+The interface supports:
+
+- manual sequence input
+- CSV upload
+- FASTA upload
+- AMP prediction
+- 14-category functional prediction for AMP-positive sequences
+- physicochemical descriptor calculation
+- downloadable CSV and FASTA outputs
+
+Functional activity prediction is performed only for sequences classified as AMP-positive by the AMP screening model. Sequences that do not pass AMP screening are reported with AMP probability and sequence-derived descriptors only.
+
+By default, the interface suggests `MAPLE_checkpoints` as the model folder. In this repository snapshot, existing local checkpoints are stored under `Model/`. The app includes compatibility fallback logic for that local layout.
+
+## Input formats
+
+### CSV input
+
+```csv
+sequence_id,sequence
+pep_001,KWKLFKKIGAVLKVL
+pep_002,GIGKFLHSAKKFGKAFVGEIMNS
+```
+
+If the CSV does not contain a column named `sequence`, the Streamlit interface allows users to select the sequence column manually.
+
+### FASTA input
+
+```fasta
+>pep_001
+KWKLFKKIGAVLKVL
+>pep_002
+GIGKFLHSAKKFGKAFVGEIMNS
+```
+
+### Manual input
+
+One sequence per line, or FASTA-like text.
+
+## Command-line inference
+
+`predict.py` performs batch inference from CSV and writes probability columns to a CSV file.
+
+Example:
+
+```bash
+python predict.py \
+  --input_csv Data/Demo/AMP_demo.csv \
+  --output_csv outputs/demo_predictions.csv \
+  --sequence_col sequence \
+  --label_dir Model/label \
+  --knowledge_transformer_ckpt Model/knowledge_transformer.pt \
+  --device auto
+```
+
+If you want to predict with a single checkpoint produced by `train.py`, use `--checkpoint` instead of `--label_dir`.
+
+## Output fields
+
+The local Streamlit output includes:
+
+- `sequence_id`
+- `sequence`
+- `clean_sequence`
+- `valid`
+- `invalid_reason`
+- `length_warning`
+- `P_AMP`
+- `AMP_label`
+- `P_antibacterial`
+- `P_hemolytic`
+- `selectivity_score`
+- `priority_group`
+- functional probabilities and binary labels
+- physicochemical descriptors
+- additional sequence descriptors
+
+`selectivity_score` is defined as:
+
+```text
+P_antibacterial - P_hemolytic
+```
+
+`priority_group` uses the following categories:
+
+- `high_priority_selective`
+- `effective_but_toxicity_flagged`
+- `low_antibacterial_potential`
+- `intermediate_or_uncertain`
+- `properties_only`
+- `invalid_sequence`
+
+The command-line `predict.py` output is narrower and currently writes:
+
+- `sequence`
+- `prob_<label>` columns for the requested label set
+
+## Sequence validation and physicochemical profiling
+
+MAPLE accepts sequences composed of the 20 standard amino acids:
+
+```text
+ACDEFGHIKLMNPQRSTVWY
+```
+
+Sequences containing `B`, `J`, `O`, `U`, `X`, `Z`, or other unsupported symbols are retained in the output but skipped for model prediction.
+
+The Streamlit interface reports approximate sequence-derived descriptors including:
+
+- length
+- approximate molecular weight
+- approximate net charge
+- charge density
+- mean Kyte-Doolittle hydrophobicity
+- fraction of positively charged residues
+- fraction of negatively charged residues
+- fraction of hydrophobic residues
+- fraction of polar residues
+- fraction of aromatic residues
+- fraction of glycine
+- fraction of proline
+
+These descriptors are approximate sequence-derived descriptors for interpretation only and are not experimental measurements.
+
+## Model architecture
+
+MAPLE integrates two complementary input streams:
+
+1. ESM-2 residue-level embeddings
+2. Knowledge-based physicochemical residue features
+
+The two streams are processed through a multi-scale sequence encoder and fused for peptide-level prediction. In the current implementation, the main components include:
+
+- an ESM-2 embedding branch
+- a knowledge-enhanced transformer branch
+- a residual Mamba-style encoder block
+- a residue ScConv block
+- cross-modal fusion
+- an MLP classification head for AMP screening and functional prediction
+
+## Training and evaluation
+
+MAPLE is trained as independent binary classifiers for AMP identification and each functional category.
+
+### Build feature PKL
+
+```bash
+python Generate_pkl.py \
+  --input_csv Data/Benchmark/MTL/antifungal.csv \
+  --output_pkl Data/Benchmark/MTL/antifungal.pkl \
+  --sequence_col sequence \
   --label_cols label \
-  --cache_dir cache_demo \
-  --cache_name amp_demo \
-  --overwrite
+  --knowledge_transformer_ckpt Model/knowledge_transformer.pt \
+  --device auto
 ```
 
-#### 2) Train
+### Train a classifier
 
 ```bash
 python train.py \
-  --data_csv Data/Demo/AMP_demo.csv \
+  --data_pkl Data/Benchmark/MTL/antifungal.pkl \
   --label_cols label \
-  --epochs 1 \
-  --save_dir runs_amp_demo \
-  --cache_dir cache_demo \
-  --cache_name amp_demo \
-  --use_feature_cache \
-  --strict_cache
+  --save_dir out_stl/antifungal \
+  --gpu 0
 ```
 
-#### 3) Evaluate
+### Evaluate a checkpoint
 
 ```bash
-python Eval.py \
-  --checkpoint runs_amp_demo/best_amp_model.pt \
-  --threshold_file runs_amp_demo/best_amp_thresholds.json \
-  --csv_path Data/Demo/AMP_demo.csv \
-  --output_dir eval_amp_demo \
-  --cache_dir cache_demo \
-  --cache_name amp_demo \
-  --use_feature_cache \
-  --strict_cache
-```
-
----
-
-### MTL demo
-
-#### 1) Build feature cache
-
-```bash
-python build_feature_cache.py \
-  --data_csv Data/Demo/MTL_demo.csv \
-  --label_cols anti_mammalian_cells antibacterial antibiofilm anticancer antifungal antigram-negative antigram-positive antihiv antimrsa antioxidant antiparasitic antiviral cytotoxic hemolytic \
-  --cache_dir cache_demo \
-  --cache_name mtl_demo \
-  --overwrite
-```
-
-#### 2) Train
-
-```bash
-python train.py \
-  --data_csv Data/Demo/MTL_demo.csv \
-  --label_cols anti_mammalian_cells antibacterial antibiofilm anticancer antifungal antigram-negative antigram-positive antihiv antimrsa antioxidant antiparasitic antiviral cytotoxic hemolytic \
-  --epochs 1 \
-  --save_dir runs_mtl_demo \
-  --cache_dir cache_demo \
-  --cache_name mtl_demo \
-  --use_feature_cache \
-  --strict_cache
-```
-
-#### 3) Evaluate
-
-```bash
-python Eval.py \
-  --checkpoint runs_mtl_demo/best_multilabel_model.pt \
-  --threshold_file runs_mtl_demo/best_multilabel_thresholds.json \
-  --csv_path Data/Demo/MTL_demo.csv \
-  --output_dir eval_mtl_demo \
-  --cache_dir cache_demo \
-  --cache_name mtl_demo \
-  --use_feature_cache \
-  --strict_cache
-```
-
----
-
-## Full Workflow
-
-## 1. Rebuild feature cache
-
-Use **separate cache names** for benchmark and independent datasets.
-
-### AMP cache
-
-```bash
-python build_feature_cache.py \
-  --data_csv Data/Benchmark/AMP.csv \
+python eval.py \
+  --checkpoint out_stl/antifungal/antifungal.pt \
+  --data_pkl Data/Independent/MTL/antifungal.pkl \
   --label_cols label \
-  --cache_dir cacheruns_amp_raw \
-  --cache_name amp_benchmark \
-  --overwrite
+  --threshold 0.5 \
+  --device auto \
+  --output_dir eval_outputs/antifungal
 ```
 
+For local repository checkpoints, you can also evaluate files under `Model/label/...`. For example:
+
 ```bash
-python build_feature_cache.py \
-  --data_csv Data/Independent/AMP.csv \
+python eval.py \
+  --checkpoint Model/label/antifungal/antifungal.pt \
+  --data_pkl Data/Independent/MTL/antifungal.pkl \
   --label_cols label \
-  --cache_dir cacheruns_amp_raw \
-  --cache_name amp_independent \
-  --overwrite
+  --threshold 0.5 \
+  --device auto \
+  --output_dir eval_outputs/antifungal_model
 ```
 
-### MTL cache
+## Optional constrained fine-tuning
 
 ```bash
-python build_feature_cache.py \
-  --data_csv Data/Benchmark/MTL.csv \
-  --label_cols anti_mammalian_cells antibacterial antibiofilm anticancer antifungal antigram-negative antigram-positive antihiv antimrsa antioxidant antiparasitic antiviral cytotoxic hemolytic \
-  --cache_dir cacheruns_amp_raw \
-  --cache_name mtl_benchmark \
-  --overwrite
-```
-
-```bash
-python build_feature_cache.py \
-  --data_csv Data/Independent/MTL.csv \
-  --label_cols anti_mammalian_cells antibacterial antibiofilm anticancer antifungal antigram-negative antigram-positive antihiv antimrsa antioxidant antiparasitic antiviral cytotoxic hemolytic \
-  --cache_dir cacheruns_amp_raw \
-  --cache_name mtl_independent \
-  --overwrite
-```
-
----
-
-## 2. Train models
-
-`train.py` is the main training entry.
-
-### AMP training
-
-```bash
-python train.py \
-  --data_csv Data/Benchmark/AMP.csv \
+python constrained_finetune.py \
+  --init_checkpoint out_stl/antifungal/antifungal.pt \
+  --tune_data_pkl Data/Independent/MTL/antifungal.pkl \
+  --benchmark_pkl Data/Benchmark/MTL/antifungal.pkl \
   --label_cols label \
-  --batch_size 16 \
-  --lr 1e-4 \
-  --weight_decay 1e-5 \
-  --epochs 100 \
-  --val_ratio 0.2 \
-  --seed 42 \
-  --save_dir runs_amp \
-  --cache_dir cacheruns_amp_raw \
-  --cache_name amp_benchmark \
-  --use_feature_cache \
-  --strict_cache
+  --save_dir out_stl/antifungal_constrained_ft \
+  --output_name antifungal_constrained.pt \
+  --max_samples 5120 \
+  --batch_size 32 \
+  --lr 1e-5 \
+  --epochs 30 \
+  --gpu 0 \
+  --threshold 0.5 \
+  --benchmark_min_f1 0.0 \
+  --benchmark_stop_floor 0.70 \
+  --min_delta 0.0 \
+  --save_any_valid \
+  --save_last_if_none
 ```
 
-### MTL training
+## Data availability
 
-```bash
-python train.py \
-  --data_csv Data/Benchmark/MTL.csv \
-  --label_cols anti_mammalian_cells antibacterial antibiofilm anticancer antifungal antigram-negative antigram-positive antihiv antimrsa antioxidant antiparasitic antiviral cytotoxic hemolytic \
-  --batch_size 16 \
-  --lr 1e-4 \
-  --weight_decay 1e-5 \
-  --epochs 100 \
-  --val_ratio 0.2 \
-  --seed 42 \
-  --save_dir runs_mtl \
-  --cache_dir cacheruns_amp_raw \
-  --cache_name mtl_benchmark \
-  --use_feature_cache \
-  --strict_cache
-```
+Processed benchmark, independent, and demo files are included under [Data](./Data).
 
----
+This repository contains processed CSV and PKL files used for training, evaluation, and demo inference. Source-database provenance and downstream manuscript details should be described in the accompanying paper or supplementary material.
 
-## 3. Evaluate on independent data
+## Reproducibility notes
 
-`Eval.py` is the evaluation / inference entry.
-
-### AMP evaluation
-
-```bash
-python Eval.py \
-  --checkpoint runs_amp/best_amp_model.pt \
-  --threshold_file runs_amp/best_amp_thresholds.json \
-  --csv_path Data/Independent/AMP.csv \
-  --output_dir eval_amp \
-  --cache_dir cacheruns_amp_raw \
-  --cache_name amp_independent \
-  --use_feature_cache \
-  --strict_cache
-```
-
-### MTL evaluation
-
-```bash
-python Eval.py \
-  --checkpoint runs_mtl/best_multilabel_model.pt \
-  --threshold_file runs_mtl/best_multilabel_thresholds.json \
-  --csv_path Data/Independent/MTL.csv \
-  --output_dir eval_mtl \
-  --cache_dir cacheruns_amp_raw \
-  --cache_name mtl_independent \
-  --use_feature_cache \
-  --strict_cache
-```
-
----
-
-## Outputs
-
-Training writes task-specific artifacts.
-
-### AMP task
-
-* Best checkpoint: `best_amp_model.pt`
-* Threshold file: `best_amp_thresholds.json`
-
-### MTL task
-
-* Best checkpoint: `best_multilabel_model.pt`
-* Threshold file: `best_multilabel_thresholds.json`
-
-### General notes
-
-* Use a **unique `save_dir`** for each training run
-* Use a **consistent `cache_name`** between cache building and later loading
-* Evaluation should always use the **training-derived threshold file**
-* Independent datasets are intended for **final evaluation only**
-
----
-
-## Repository Structure
-
-* `Data/` — benchmark, independent, and demo datasets
-* `Figure/` — manuscript figures and architecture schematics
-* `Module/` — core model modules (CARE, ProBiMamba, attention blocks, etc.)
-* `build_feature_cache.py` — precompute and store feature caches
-* `data.py` — dataset and dataloader utilities
-* `loss.py` — task loss functions / imbalance-aware objectives
-* `model.py` — MAPLE model definition
-* `train.py` — training entry
-* `Eval.py` — evaluation / inference entry
-
----
-
+- The independent dataset is intended for final evaluation rather than threshold selection.
+- Task-specific thresholds are stored in `thresholds.json`.
+- The Streamlit interface does not generate random or dummy predictions.
+- If checkpoints are missing, probability columns are reported as unavailable rather than fabricated.
+- Predictions are computational estimates and require experimental validation.
 
 ## Citation
 
-If you use this code, please cite the manuscript (update as needed):
+If you use MAPLE, please cite:
 
-```bibtex
-@article{submitted,
-  title={MAPLE: Interpretable deep learning identifies selective antimicrobial peptides using joint evolutionary-physicochemical analysis},
-  author={Liu, Hao and Shi, Yi and Guo, Feiyu and others},
-  journal={Manuscript submitted},
-  year={2026}
-}
+```text
+Liu H, Shi Y, Guo F, Wang J, Li J, Wang G, Zhan D-C, Hao H, Yu G.
+MAPLE: Interpretable deep learning identifies selective antimicrobial peptides
+using joint evolutionary-physicochemical analysis.
 ```
 
----
+If the manuscript is still under review, replace the citation with your preferred preprint or review-status wording.
 
 ## License
 
-MIT License — see [LICENSE](LICENSE).
+No license file is currently included in this repository snapshot. Add an explicit license before public release.
 
----
+## Contact
 
-## Acknowledgements
-
-Built with ❤️ by the GuoYu team | China Pharmaceutical University & Nanjing University
-
-```
+For questions, please contact the corresponding project authors.
