@@ -16,9 +16,7 @@ selectivity-oriented prioritization.
 - Training script for binary or multi-label MAPLE checkpoints.
 - Evaluation script that exports task metrics to CSV.
 - Minimal public AMP sequence example CSV for inference and Streamlit testing.
-- Data schema, task definitions, and documentation for preparing benchmark and
-  independent validation datasets from the public sources described in the
-  manuscript.
+- Data schema, task definitions, and input-preprocessing documentation for converting user-prepared peptide sequence tables into MAPLE-compatible feature files.
 - Optional motif-reference table for the Streamlit interpretation layer.
 
 Pretrained `.pt` checkpoints are provided separately through the GitHub Releases
@@ -372,10 +370,7 @@ antibiotic-related annotations.
 
 Because these datasets were derived from multiple third-party public databases
 with different usage policies, this repository does not redistribute the full
-benchmark or independent validation datasets as bundled CSV files. Instead, we
-provide the model implementation, configuration files, task definitions, example
-command lines, example input files, and documentation describing how the datasets
-and labels were organized for model training and evaluation.
+benchmark or independent validation datasets as bundled CSV files. Instead, we provide the model implementation, configuration files, task definitions, example command lines, example input files, and input-preprocessing documentation for converting user-prepared peptide sequence tables into MAPLE-compatible feature files. The repository does not provide a complete re-collection pipeline for reconstructing the benchmark or independent validation datasets.
 
 The file `examples/example_input.csv` contains a small number of real peptide
 sequences selected from public AMP databases and is provided only as a minimal
