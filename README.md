@@ -439,9 +439,7 @@ as ScConv/ProMamba to the current CARE/ProBiMamba names.
 If you use MAPLE, cite the associated manuscript or project reference:
 
 ```text
-Liu H, Shi Y, Guo F, Wang J, Li J, Wang G, Zhan D-C, Hao H, Yu G.
-MAPLE: Interpretable deep learning identifies selective antimicrobial peptides
-using joint evolutionary-physicochemical analysis.
+Liu H, Shi Y, Guo F, Wang J, Li J, Wang G, Zhan D-C, Hao H, Yu G. MAPLE: interpretable deep learning identifies selective antimicrobial peptides using joint evolutionary–physicochemical analysis[J]. Briefings in Bioinformatics, 2026, 27(3): bbag318. DOI: 10.1093/bib/bbag318.
 ```
 
 ## License
